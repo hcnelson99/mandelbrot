@@ -104,6 +104,7 @@ void recompile_program(GLuint *program) {
     if (!link_program(gl_program)) {
         return;
     }
+    glBindAttribLocation(gl_program, 0, "vertex_pos");
 
     *program = gl_program;
 }
@@ -123,7 +124,7 @@ int main() {
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
@@ -149,11 +150,6 @@ int main() {
         printf("failed to compile program");
         return 1;
     }
-    GLint vertex_pos = glGetAttribLocation(gl_program, "vertex_pos");
-    if (vertex_pos == GL_INVALID_OPERATION) {
-        printf("failed to get vertex_pos\n");
-        return 1;
-    }
 
     GLuint vbo, ibo;
 
@@ -169,10 +165,12 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * sizeof(GLuint), ibo_data, GL_STATIC_DRAW);
 
-    // GLuint vao;
-    // glGenVertexArrays(1, &vao);
-    // glBindVertexArray(vao);
-    // glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
 
     bool running = true;
     while (running) {
@@ -186,11 +184,6 @@ int main() {
                 if (event.key.keysym.sym == SDLK_r) {
                     printf("Recompiling...\n");
                     recompile_program(&gl_program);
-                    vertex_pos = glGetAttribLocation(gl_program, "vertex_pos");
-                    if (vertex_pos == GL_INVALID_OPERATION) {
-                        printf("failed to get vertex_pos\n");
-                        return 1;
-                    }
                     printf("Done\n");
                 }
             }
@@ -199,15 +192,8 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(gl_program);
 
-        glEnableVertexAttribArray(vertex_pos);
-
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glVertexAttribPointer(vertex_pos, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), NULL);
-
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
-
-        glDisableVertexAttribArray(vertex_pos);
 
         glUseProgram(0);
 
