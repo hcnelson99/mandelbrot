@@ -39,7 +39,7 @@ void gl_debug_message(GLenum source, GLenum type, GLuint id, GLenum severity, GL
     }
     printf("): %s\n", message);
 
-    if (severity == GL_DEBUG_SEVERITY_HIGH) {
+    if (severity == GL_DEBUG_SEVERITY_HIGH && source != GL_DEBUG_SOURCE_SHADER_COMPILER) {
         exit(1);
     }
 }
@@ -109,12 +109,35 @@ void recompile_program(GLuint *program) {
     *program = gl_program;
 }
 
+void move(double *x0, double *y0, double *x1, double *y1, int xdir, int ydir) {
+    double scale = 0.1;
+    double dx = scale * (*x1 - *x0);
+    double dy = scale * (*y1 - *y0);
+
+    *x0 += dx * xdir;
+    *y0 += dy * ydir;
+
+    *x1 += dx * xdir;
+    *y1 += dy * ydir;
+}
+
+void zoom(double *x0, double *y0, double *x1, double *y1, double scale) {
+    double xd = *x1 - *x0;
+    double yd = *y1 - *y0;
+    *x0 += xd * scale;
+    *y0 += yd * scale;
+    *x1 -= xd * scale;
+    *y1 -= yd * scale;
+}
+
 int main() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("Failed to init video\n");
         return 1;
     }
 
+    int width = 800;
+    int height = 600;
     SDL_Window *window =
         SDL_CreateWindow("Mandelbrot", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_OPENGL);
 
@@ -172,6 +195,9 @@ int main() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
 
+    double zoom_scale = 0.2;
+    double x0 = -2.5, y0 = -1, x1 = 1, y1 = 1;
+
     bool running = true;
     while (running) {
         SDL_Event event;
@@ -180,17 +206,48 @@ int main() {
             case SDL_QUIT:
                 running = false;
                 break;
-            case SDL_KEYUP:
-                if (event.key.keysym.sym == SDLK_r) {
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym) {
+                case SDLK_r:
                     printf("Recompiling...\n");
                     recompile_program(&gl_program);
                     printf("Done\n");
+                    break;
+                case SDLK_LEFT:
+                case SDLK_a:
+                    move(&x0, &y0, &x1, &y1, -1, 0);
+                    break;
+                case SDLK_RIGHT:
+                case SDLK_d:
+                    move(&x0, &y0, &x1, &y1, 1, 0);
+                    break;
+                case SDLK_UP:
+                case SDLK_w:
+                    move(&x0, &y0, &x1, &y1, 0, 1);
+                    break;
+                case SDLK_DOWN:
+                case SDLK_s:
+                    move(&x0, &y0, &x1, &y1, 0, -1);
+                    break;
+
+                case SDLK_z:
+                    zoom(&x0, &y0, &x1, &y1, zoom_scale);
+                    break;
+                case SDLK_x:
+                    zoom(&x0, &y0, &x1, &y1, -zoom_scale);
+                    break;
                 }
             }
         }
 
+        SDL_GetWindowSize(window, &width, &height);
+        glViewport(0, 0, width, height);
+
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(gl_program);
+
+        glUniform2f(glGetUniformLocation(gl_program, "window_size"), width, height);
+        glUniform4d(glGetUniformLocation(gl_program, "view"), x0, y0, x1, y1);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
         glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
