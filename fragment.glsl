@@ -67,6 +67,7 @@ void main() {
     }
     xy = uv + dvec2(xy.x * xy.x - xy.y * xy.y, 2. * xy.x * xy.y);;
     xy = uv + dvec2(xy.x * xy.x - xy.y * xy.y, 2. * xy.x * xy.y);;
+    i += 2;
 
     float mu = clamp(float(i) - log2(log2(float(length(xy)))), 0, max_iter) / float(max_iter + 2);
 
